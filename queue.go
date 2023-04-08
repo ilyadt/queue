@@ -39,14 +39,14 @@
 package main
 
 import (
-    "context"
-    "errors"
-    "flag"
-    "log"
-    "net/http"
-    "strconv"
-    "sync"
-    "time"
+	"context"
+	"errors"
+	"flag"
+	"log"
+	"net/http"
+	"strconv"
+	"sync"
+	"time"
 )
 
 // Queue --->
@@ -54,64 +54,64 @@ import (
 var ErrNoElements = errors.New("no elements")
 
 func NewQueue() *Queue {
-    return &Queue{
-        waitChan: make(map[string]chan string),
-        queues:   make(map[string][]string),
-    }
+	return &Queue{
+		waitChan: make(map[string]chan string),
+		queues:   make(map[string][]string),
+	}
 }
 
 type Queue struct {
-    waitChan map[string]chan string
-    queues   map[string][]string
-    mu       sync.Mutex // TODO for improving performance each queue can be locked separately
+	waitChan map[string]chan string
+	queues   map[string][]string
+	mu       sync.Mutex // TODO for improving performance each queue can be locked separately
 }
 
 func (q *Queue) Add(name, el string) {
-    q.mu.Lock()
-    defer q.mu.Unlock()
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
-    // Try to put element to wait queue if anyone is waiting
-    select {
-    case q.waitChan[name] <- el:
-        return
-    default:
-    }
+	// Try to put element to wait queue if anyone is waiting
+	select {
+	case q.waitChan[name] <- el:
+		return
+	default:
+	}
 
-    q.queues[name] = append(q.queues[name], el)
+	q.queues[name] = append(q.queues[name], el)
 }
 
 func (q *Queue) Get(name string) (res string, err error) {
-    q.mu.Lock()
-    defer q.mu.Unlock()
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
-    if len(q.queues[name]) == 0 {
-        return "", ErrNoElements
-    }
+	if len(q.queues[name]) == 0 {
+		return "", ErrNoElements
+	}
 
-    res, q.queues[name] = q.queues[name][0], q.queues[name][1:]
+	res, q.queues[name] = q.queues[name][0], q.queues[name][1:]
 
-    return res, nil
+	return res, nil
 }
 
 func (q *Queue) GetWait(name string) <-chan string {
-    q.mu.Lock()
-    defer q.mu.Unlock()
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
-    if len(q.queues[name]) == 0 {
-        if q.waitChan[name] == nil {
-            q.waitChan[name] = make(chan string)
-        }
+	if len(q.queues[name]) == 0 {
+		if q.waitChan[name] == nil {
+			q.waitChan[name] = make(chan string)
+		}
 
-        return q.waitChan[name]
-    }
+		return q.waitChan[name]
+	}
 
-    res := make(chan string, 1)
-    res <- q.queues[name][0] // queue always has at least one element (previous check)
-    close(res)
+	res := make(chan string, 1)
+	res <- q.queues[name][0] // queue always has at least one element (previous check)
+	close(res)
 
-    q.queues[name] = q.queues[name][1:]
+	q.queues[name] = q.queues[name][1:]
 
-    return res
+	return res
 }
 
 // <--- Queue
@@ -119,88 +119,90 @@ func (q *Queue) GetWait(name string) <-chan string {
 // Client Request Queue -->
 
 type ClientReqQueue struct {
-    Queue    *Queue
-    clientsQ sync.Map
-    mu       sync.Mutex
+	Queue    *Queue
+	clientsQ sync.Map
+	mu       sync.Mutex
 }
 
 func (w *ClientReqQueue) Add(job *Job) {
-    ch, ok := w.clientsQ.Load(job.QueueName)
+	ch, ok := w.clientsQ.Load(job.QueueName)
 
-    // Queue initialisation
-    if !ok {
-        w.mu.Lock()
-        ch, ok = w.clientsQ.Load(job.QueueName)
-        if !ok {
-            ch = make(chan *Job)
-            w.clientsQ.Store(job.QueueName, ch)
+	// Queue initialisation
+	if !ok {
+		w.mu.Lock()
 
-            go w.process(ch.(chan *Job))
-        }
-        w.mu.Unlock()
-    }
+		ch, ok = w.clientsQ.Load(job.QueueName)
+		if !ok {
+			ch = make(chan *Job)
+			w.clientsQ.Store(job.QueueName, ch)
 
-    // Pushing request to queue async
-    go func() {
-        ch.(chan *Job) <- job
-    }()
+			go w.process(ch.(chan *Job))
+		}
+
+		w.mu.Unlock()
+	}
+
+	// Pushing request to queue async
+	go func() {
+		ch.(chan *Job) <- job
+	}()
 }
 
 func (w *ClientReqQueue) process(ch chan *Job) {
-    for job := range ch {
-        // Priority for discarding jobs which are cancelled
-        select {
-        case <-job.cancelled:
-            continue
-        default:
-        }
+	for job := range ch {
+		// Priority for discarding jobs which are cancelled
+		select {
+		case <-job.cancelled:
+			continue
+		default:
+		}
 
-        select {
-        case <-job.cancelled:
-            continue
-        case val := <-w.Queue.GetWait(job.QueueName):
-            job.Result = val
-            close(job.done)
+		select {
+		case <-job.cancelled:
+			continue
+		case val := <-w.Queue.GetWait(job.QueueName):
+			job.Result = val
+			close(job.done)
 
-            // Dropped value from queue (race condition)
-            // Job cancelled and at the same time value received
-            select {
-            case <-job.cancelled:
-                log.Printf("dropped value `%s` queue=%s", job.Result, job.QueueName)
-            default:
-            }
-        }
-    }
+			// Dropped value from queue (race condition)
+			// Job cancelled and at the same time value received
+			select {
+			case <-job.cancelled:
+				log.Printf("dropped value `%s` queue=%s", job.Result, job.QueueName)
+			default:
+			}
+		}
+	}
 }
 
 func NewClientReqQueue(q *Queue) *ClientReqQueue {
-    return &ClientReqQueue{
-        Queue: q,
-    }
+	return &ClientReqQueue{
+		Queue: q,
+	}
 }
 
 type Job struct {
-    QueueName string
-    Result    string
+	QueueName string
+	Result    string
 
-    done      chan struct{}
-    cancelled chan struct{}
+	done      chan struct{}
+	cancelled chan struct{}
 }
 
 func (r *Job) Done() <-chan struct{} {
-    return r.done
+	return r.done
 }
 
 func (r *Job) Cancel() {
-    close(r.cancelled)
+	close(r.cancelled)
 }
 
 func NewJob(qName string) *Job {
-    return &Job{
-        QueueName: qName,
-        done:      make(chan struct{}),
-        cancelled: make(chan struct{}),
-    }
+	return &Job{
+		QueueName: qName,
+		done:      make(chan struct{}),
+		cancelled: make(chan struct{}),
+	}
 }
 
 /// <---  Client Request Queue
@@ -208,92 +210,96 @@ func NewJob(qName string) *Job {
 // Handler --->
 
 type Handler struct {
-    Queue    *Queue
-    ClientsQ *ClientReqQueue
+	Queue    *Queue
+	ClientsQ *ClientReqQueue
 }
 
 func (h *Handler) Request(w http.ResponseWriter, r *http.Request) {
-    switch r.Method {
-    case http.MethodPut:
-        queueName := r.URL.Path[1:]
-        if queueName == "" {
-            w.WriteHeader(http.StatusBadRequest)
-            return
-        }
+	switch r.Method {
+	case http.MethodPut:
+		queueName := r.URL.Path[1:]
+		if queueName == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-        val := r.URL.Query().Get("v")
+		val := r.URL.Query().Get("v")
 
-        if val == "" {
-            w.WriteHeader(http.StatusBadRequest)
-            return
-        }
+		if val == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-        h.Queue.Add(queueName, val)
-    case http.MethodGet:
-        queueName := r.URL.Path[1:]
-        if queueName == "" {
-            w.WriteHeader(http.StatusBadRequest)
-            return
-        }
+		h.Queue.Add(queueName, val)
+	case http.MethodGet:
+		queueName := r.URL.Path[1:]
+		if queueName == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-        timeout := 0
+		timeout := 0
 
-        if v := r.URL.Query().Get("timeout"); v != "" {
-            timeout, _ = strconv.Atoi(v)
-        }
+		if v := r.URL.Query().Get("timeout"); v != "" {
+			timeout, _ = strconv.Atoi(v)
+		}
 
-        if timeout == 0 {
-            el, err := h.Queue.Get(queueName)
-            if err != nil {
-                w.WriteHeader(http.StatusNotFound)
-                return
-            }
+		if timeout < 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-            _, _ = w.Write([]byte(el))
-            return
-        } else {
-            // Create new job
-            job := NewJob(queueName)
+		if timeout == 0 {
+			el, err := h.Queue.Get(queueName)
+			if err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 
-            // Place job in a queue
-            h.ClientsQ.Add(job)
+			_, _ = w.Write([]byte(el))
 
-            // Creating context with timeout for job cancellation
-            ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout)*time.Second)
-            defer cancel()
+			return
+		}
 
-            select {
-            case <-ctx.Done():
-                job.Cancel()
-                w.WriteHeader(http.StatusNotFound)
-            case <-job.Done():
-                _, _ = w.Write([]byte(job.Result))
-            }
+		// Create new job
+		job := NewJob(queueName)
 
-            return
-        }
-    default:
-        w.WriteHeader(http.StatusNotFound)
-    }
+		// Place job in a queue
+		h.ClientsQ.Add(job)
+
+		// Creating context with timeout for job cancellation
+		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout)*time.Second)
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+			job.Cancel()
+			w.WriteHeader(http.StatusNotFound)
+		case <-job.Done():
+			_, _ = w.Write([]byte(job.Result))
+		}
+	default:
+		w.WriteHeader(http.StatusNotFound)
+	}
 }
 
 // <--- Handler
 
 func main() {
-    p := flag.String("p", "2802", "listening port -p 80")
+	p := flag.String("p", "2802", "listening port -p 80")
 
-    flag.Parse()
+	flag.Parse()
 
-    q := NewQueue()
+	q := NewQueue()
 
-    h := &Handler{
-        ClientsQ: NewClientReqQueue(q),
-        Queue:    q,
-    }
+	h := &Handler{
+		ClientsQ: NewClientReqQueue(q),
+		Queue:    q,
+	}
 
-    http.HandleFunc("/", h.Request)
+	http.HandleFunc("/", h.Request)
 
-    if err := http.ListenAndServe("127.0.0.1:"+*p, nil); err != nil {
-        panic("Error Starting the HTTP Server " + err.Error())
-    }
+	if err := http.ListenAndServe("127.0.0.1:"+*p, nil); err != nil {
+		panic("Error Starting the HTTP Server " + err.Error())
+	}
 }
