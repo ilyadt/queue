@@ -30,10 +30,13 @@ func iRequestValueWithNegativeTimeout(ctx context.Context) (context.Context, err
 	return context.WithValue(ctx, "response", resp), nil
 }
 
-func iPutValueWithoutQueueName(ctx context.Context) (context.Context, error) {
+func iPutValueInQueue(ctx context.Context, val, queue string) (context.Context, error) {
 	baseUrl := ctx.Value("serverBaseURL").(string)
 
-	req, _ := http.NewRequest("PUT", baseUrl + "/?value=red", nil)
+	req, err := http.NewRequest("PUT", baseUrl + "/" + queue + "?v=" + val, nil)
+	if err != nil {
+		panic("build req err: " + err.Error())
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -50,7 +53,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 
 	ctx.Step(`^I get (\d+) status$`, iGetStatus)
 	ctx.Step(`^I request value with negative timeout$`, iRequestValueWithNegativeTimeout)
-	ctx.Step(`^I put value without queue name$`, iPutValueWithoutQueueName)
+	ctx.Step(`^I put value "([^"]*)" in queue "([^"]*)"$`, iPutValueInQueue)
 }
 
 func TestFeatures(t *testing.T) {
