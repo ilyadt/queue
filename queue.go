@@ -42,8 +42,11 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -299,7 +302,20 @@ func main() {
 
 	http.HandleFunc("/", h.Request)
 
-	if err := http.ListenAndServe("127.0.0.1:"+*p, nil); err != nil {
-		panic("Error Starting the HTTP Server " + err.Error())
+	addr := "127.0.0.1:" + *p
+
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		fmt.Printf("error starting the server: %s\n", err.Error())
+
+		os.Exit(1)
+	}
+
+	fmt.Printf("server started listening on addr: %s\n", addr)
+
+	if err := http.Serve(l, nil); err != nil {
+		fmt.Printf("http server error %s\n", err.Error())
+
+		os.Exit(1)
 	}
 }
