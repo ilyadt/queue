@@ -3,19 +3,20 @@ package main_test
 import (
 	"context"
 	"fmt"
-	"github.com/cucumber/godog"
 	"io"
 	"net"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/cucumber/godog"
 )
 
-func iPutEnoughElementsInQueue(ctx *MyCtx) error {
+func iPutElementsInQueue(ctx *MyCtx, n int) error {
 	client := http.DefaultClient
 
-	for i := 1; i <= ctx.numberOfRequests; i++ {
+	for i := 1; i <= n; i++ {
 		req, _ := http.NewRequest("PUT", ctx.serverBaseURL+"/"+ctx.qName+`?v=`+strconv.Itoa(i), nil)
 		resp, err := client.Do(req)
 		if err != nil {
@@ -33,7 +34,9 @@ func iPutEnoughElementsInQueue(ctx *MyCtx) error {
 }
 
 func subscribersGetValuesInTheFifoOrder(ctx *MyCtx) error {
-	for res := range ctx.resGetTimeout {
+	resultC := ctx.resultC
+
+	for res := range resultC {
 		if res.err != nil {
 			return fmt.Errorf("error subscriber resp: %w: %+v", res.err, res)
 		}
@@ -47,9 +50,8 @@ func subscribersGetValuesInTheFifoOrder(ctx *MyCtx) error {
 }
 
 func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, error) {
-	ctx.numberOfRequests = n
-	ctx.resGetTimeout = make(chan *ResGetTimeout, n)
-	ctx.cancelChan = make(chan context.CancelFunc, n)
+	resultC := make(chan *Result, n)
+	cancelC := make(chan context.CancelFunc, n)
 
 	connectedC := make(chan struct{})
 
@@ -79,17 +81,17 @@ func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, erro
 			}
 
 			ctx2, cancel := context.WithCancel(context.Background())
-			ctx.cancelChan <- cancel
+			cancelC <- cancel
 
 			req, _ := http.NewRequestWithContext(ctx2, "GET", ctx.serverBaseURL+"/"+ctx.qName+"?timeout=300", nil)
 			resp, err := client.Do(req)
 			if err != nil {
-				ctx.resGetTimeout <- &ResGetTimeout{num: i, err: err}
+				resultC <- &Result{num: i, err: err}
 				return
 			}
 
 			if resp.StatusCode != 200 {
-				ctx.resGetTimeout <- &ResGetTimeout{num: i, err: fmt.Errorf("status code %d", resp.StatusCode)}
+				resultC <- &Result{num: i, err: fmt.Errorf("status code %d", resp.StatusCode)}
 				return
 			}
 
@@ -97,11 +99,11 @@ func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, erro
 			_ = resp.Body.Close()
 
 			if err != nil {
-				ctx.resGetTimeout <- &ResGetTimeout{num: i, err: err}
+				resultC <- &Result{num: i, err: err}
 				return
 			}
 
-			ctx.resGetTimeout <- &ResGetTimeout{num: i, resp: string(body)}
+			resultC <- &Result{num: i, resp: string(body)}
 		}(i)
 
 		// After client is connected to the server, go further to the next request
@@ -110,14 +112,17 @@ func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, erro
 
 	go func() {
 		wg.Wait()
-		close(ctx.resGetTimeout)
+		close(resultC)
 	}()
+
+	ctx.resultC = resultC
+	ctx.cancelChan = cancelC
 
 	return ctx, nil
 }
 
 func InitializeScenario2(ctx *godog.ScenarioContext) {
-	ctx.Step(`^I put enough elements in queue$`, iPutEnoughElementsInQueue)
+	ctx.Step(`^I put (\d+) elements in queue$`, iPutElementsInQueue)
 	ctx.Step(`^subscribers get values in the fifo order$`, subscribersGetValuesInTheFifoOrder)
 	ctx.Step(`^(\d+) subscribers waiting for value in queue$`, subscribersWaitingForValueInQueue)
 }

@@ -2,14 +2,15 @@ package main_test
 
 import (
 	"context"
-	"github.com/cucumber/godog"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/cucumber/godog"
 )
 
-type ResGetTimeout struct {
+type Result struct {
 	num  int    //
 	err  error  //
 	resp string //
@@ -17,11 +18,10 @@ type ResGetTimeout struct {
 
 type MyCtx struct {
 	context.Context
-	qName            string
-	serverBaseURL    string
-	resGetTimeout    chan *ResGetTimeout
-	numberOfRequests int
-	cancelChan       chan context.CancelFunc // cancel function for each request
+	qName         string
+	serverBaseURL string
+	resultC    chan *Result
+	cancelChan chan context.CancelFunc // cancel function for each request
 }
 
 func init() {

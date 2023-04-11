@@ -2,10 +2,11 @@ package main_test
 
 import (
 	"fmt"
-	"github.com/cucumber/godog"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/cucumber/godog"
 )
 
 func elementsPushedToQueue(ctx *MyCtx, n int) error {
@@ -43,8 +44,10 @@ func queueIsEmpty(ctx *MyCtx) error {
 }
 
 func subscribersCancelRequest(ctx *MyCtx, x int) error {
+	cancelC := ctx.cancelChan
+
 	for i := 0; i < x; i++ {
-		cancel := <-ctx.cancelChan
+		cancel := <-cancelC
 		cancel()
 
 		// Ensure request ended
@@ -55,8 +58,10 @@ func subscribersCancelRequest(ctx *MyCtx, x int) error {
 }
 
 func subscribersGotValues(ctx *MyCtx, y int) error {
+	resultC := ctx.resultC
+
 	i := 0
-	for r := range ctx.resGetTimeout {
+	for r := range resultC {
 		if r.err == nil {
 			i++ // successful requests
 			fmt.Printf("RequestNO:%d resp:%s\n", r.num, r.resp)

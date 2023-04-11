@@ -11,7 +11,7 @@ import (
 func iGetElementsFromQueue(ctx *MyCtx, x int) error {
 	client := http.DefaultClient
 	for i := 0; i < x; i++ {
-		resp, err := client.Get("http://127.0.0.1:2802/" + ctx.qName)
+		resp, err := client.Get(ctx.serverBaseURL + "/" + ctx.qName)
 
 		if err != nil {
 			return fmt.Errorf("not nil error response: %w", err)
@@ -26,7 +26,7 @@ func iGetElementsFromQueue(ctx *MyCtx, x int) error {
 }
 
 func nextElementWillBe(ctx *MyCtx, value int) error {
-	resp, err := http.DefaultClient.Get("http://127.0.0.1:2802/" + ctx.qName)
+	resp, err := http.DefaultClient.Get(ctx.serverBaseURL + "/" + ctx.qName)
 
 	if err != nil {
 		return fmt.Errorf("not nil error response: %w", err)
@@ -52,7 +52,7 @@ func thereAreNElementsInQueueInOrderFromOneToN(ctx *MyCtx, n int) error {
 	client := http.DefaultClient
 
 	for i := 1; i <= n; i++ {
-		req, _ := http.NewRequest("PUT", `http://127.0.0.1:2802/`+ctx.qName+`?v=`+strconv.Itoa(i), nil)
+		req, _ := http.NewRequest("PUT", ctx.serverBaseURL + "/" +ctx.qName+`?v=`+strconv.Itoa(i), nil)
 		resp, err := client.Do(req)
 
 		if err != nil {

@@ -14,7 +14,7 @@ Feature: Queue FIFO
 
   Scenario: Multiple subscribers for one value must be ordered fifo
     Given 100 subscribers waiting for value in queue
-    When I put enough elements in queue
+    When I put 100 elements in queue
     Then subscribers get values in the fifo order
 
 
