@@ -9,8 +9,11 @@ import (
 	"github.com/cucumber/godog"
 )
 
+type ctxResponseKeyType string
+const ctxResponseKey = ctxResponseKeyType("response")
+
 func iGetStatus(ctx context.Context, status int) error {
-	resp := ctx.Value("response").(*http.Response)
+	resp := ctx.Value(ctxResponseKey).(*http.Response)
 
 	if resp.StatusCode != status {
 		return fmt.Errorf("invalid http status code: %d, expected %d", resp.StatusCode, status)
@@ -27,13 +30,13 @@ func iRequestValueWithNegativeTimeout(ctx context.Context) (context.Context, err
 		return ctx, fmt.Errorf("request negative timeout err: %w", err)
 	}
 
-	return context.WithValue(ctx, "response", resp), nil
+	return context.WithValue(ctx, ctxResponseKey, resp), nil
 }
 
 func iPutValueInQueue(ctx context.Context, val, queue string) (context.Context, error) {
 	baseUrl := ctx.Value("serverBaseURL").(string)
 
-	req, err := http.NewRequest("PUT", baseUrl + "/" + queue + "?v=" + val, nil)
+	req, err := http.NewRequest("PUT", baseUrl+"/"+queue+"?v="+val, nil)
 	if err != nil {
 		panic("build req err: " + err.Error())
 	}
@@ -43,7 +46,7 @@ func iPutValueInQueue(ctx context.Context, val, queue string) (context.Context, 
 		return ctx, fmt.Errorf("put request failed to perform: %w", err)
 	}
 
-	return context.WithValue(ctx, "response", resp), nil
+	return context.WithValue(ctx, ctxResponseKey, resp), nil
 }
 
 func InitializeScenario(ctx *godog.ScenarioContext) {
