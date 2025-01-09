@@ -10,6 +10,7 @@ import (
 )
 
 type ctxResponseKeyType string
+
 const ctxResponseKey = ctxResponseKeyType("response")
 
 func iGetStatus(ctx context.Context, status int) error {
@@ -23,7 +24,7 @@ func iGetStatus(ctx context.Context, status int) error {
 }
 
 func iRequestValueWithNegativeTimeout(ctx context.Context) (context.Context, error) {
-	baseUrl := ctx.Value("serverBaseURL").(string)
+	baseUrl := ctx.Value("ServerBaseURL").(string)
 
 	resp, err := http.Get(baseUrl + "/queue?timeout=-7")
 	if err != nil {
@@ -34,7 +35,7 @@ func iRequestValueWithNegativeTimeout(ctx context.Context) (context.Context, err
 }
 
 func iPutValueInQueue(ctx context.Context, val, queue string) (context.Context, error) {
-	baseUrl := ctx.Value("serverBaseURL").(string)
+	baseUrl := ctx.Value("ServerBaseURL").(string)
 
 	req, err := http.NewRequest("PUT", baseUrl+"/"+queue+"?v="+val, nil)
 	if err != nil {
@@ -51,7 +52,7 @@ func iPutValueInQueue(ctx context.Context, val, queue string) (context.Context, 
 
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
-		return context.WithValue(ctx, "serverBaseURL", "http://127.0.0.1:2802"), nil
+		return context.WithValue(ctx, "ServerBaseURL", "http://127.0.0.1:2802"), nil
 	})
 
 	ctx.Step(`^I get (\d+) status$`, iGetStatus)

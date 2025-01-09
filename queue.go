@@ -200,9 +200,9 @@ func (r *Job) Cancel() {
 	close(r.cancelled)
 }
 
-func NewJob(qName string) *Job {
+func NewJob(QName string) *Job {
 	return &Job{
-		QueueName: qName,
+		QueueName: QName,
 		done:      make(chan struct{}),
 		cancelled: make(chan struct{}),
 	}

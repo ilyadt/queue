@@ -1,7 +1,7 @@
 Feature: Queue FIFO
 
   Scenario Template: Put N elements in queue, read them consequently
-    Given there are <n> elements in queue in order from one to N
+    Given there are <n> elements in queue in order from 1 to N
     When I get <get> elements from queue
     Then next element will be <next>
 

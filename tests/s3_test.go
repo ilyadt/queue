@@ -5,15 +5,16 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"queue"
 
 	"github.com/cucumber/godog"
 )
 
-func elementsPushedToQueue(ctx *MyCtx, n int) error {
+func elementsPushedToQueue(ctx *main.MyCtx, n int) error {
 	client := http.DefaultClient
 
 	for i := 1; i <= n; i++ {
-		req, _ := http.NewRequest("PUT", ctx.serverBaseURL+"/"+ctx.qName+`?v=`+strconv.Itoa(i), nil)
+		req, _ := http.NewRequest("PUT", ctx.ServerBaseURL+"/"+ctx.QName+`?v=`+strconv.Itoa(i), nil)
 		resp, err := client.Do(req)
 		if err != nil {
 			return fmt.Errorf("not nil error response: %w", err)
@@ -29,8 +30,8 @@ func elementsPushedToQueue(ctx *MyCtx, n int) error {
 	return nil
 }
 
-func queueIsEmpty(ctx *MyCtx) error {
-	resp, err := http.Get(ctx.serverBaseURL + "/" + ctx.qName)
+func queueIsEmpty(ctx *main.MyCtx) error {
+	resp, err := http.Get(ctx.ServerBaseURL + "/" + ctx.QName)
 	if err != nil {
 		return fmt.Errorf("not nil error response: %w", err)
 	}
@@ -43,8 +44,8 @@ func queueIsEmpty(ctx *MyCtx) error {
 	return nil
 }
 
-func subscribersCancelRequest(ctx *MyCtx, x int) error {
-	cancelC := ctx.cancelChan
+func subscribersCancelRequest(ctx *main.MyCtx, x int) error {
+	cancelC := ctx.CancelChan
 
 	for i := 0; i < x; i++ {
 		cancel := <-cancelC
@@ -57,22 +58,22 @@ func subscribersCancelRequest(ctx *MyCtx, x int) error {
 	return nil
 }
 
-func subscribersGotValues(ctx *MyCtx, y int) error {
-	resultC := ctx.resultC
+func subscribersGotValues(ctx *main.MyCtx, y int) error {
+	ResultC := ctx.ResultC
 
 	i := 0
-	for r := range resultC {
-		if r.err == nil {
+	for r := range ResultC {
+		if r.Err == nil {
 			i++ // successful requests
-			fmt.Printf("RequestNO:%d resp:%s\n", r.num, r.resp)
+			fmt.Printf("RequestNO:%d resp:%s\n", r.Num, r.Resp)
 		} else {
-			fmt.Printf("RequestNO:%d Error: %v\n", r.num, r.err.Error())
+			fmt.Printf("RequestNO:%d Error: %v\n", r.Num, r.Err.Error())
 		}
 
 	}
 
 	if i != y {
-		return fmt.Errorf("invalid number of success request, got=%d, expected=%d", i, y)
+		return fmt.Errorf("invalid Number of success request, got=%d, expected=%d", i, y)
 	}
 
 	return nil

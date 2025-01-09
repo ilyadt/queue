@@ -9,15 +9,16 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"queue"
 
 	"github.com/cucumber/godog"
 )
 
-func iPutElementsInQueue(ctx *MyCtx, n int) error {
+func iPutElementsInQueue(ctx *main.MyCtx, n int) error {
 	client := http.DefaultClient
 
 	for i := 1; i <= n; i++ {
-		req, _ := http.NewRequest("PUT", ctx.serverBaseURL+"/"+ctx.qName+`?v=`+strconv.Itoa(i), nil)
+		req, _ := http.NewRequest("PUT", ctx.ServerBaseURL+"/"+ctx.QName+`?v=`+strconv.Itoa(i), nil)
 		resp, err := client.Do(req)
 		if err != nil {
 			return fmt.Errorf("not nil error response: %w", err)
@@ -33,15 +34,15 @@ func iPutElementsInQueue(ctx *MyCtx, n int) error {
 	return nil
 }
 
-func subscribersGetValuesInTheFifoOrder(ctx *MyCtx) error {
-	resultC := ctx.resultC
+func subscribersGetValuesInTheFifoOrder(ctx *main.MyCtx) error {
+	ResultC := ctx.ResultC
 
-	for res := range resultC {
-		if res.err != nil {
-			return fmt.Errorf("error subscriber resp: %w: %+v", res.err, res)
+	for res := range ResultC {
+		if res.Err != nil {
+			return fmt.Errorf("error subscriber resp: %w: %+v", res.Err, res)
 		}
 
-		if res.resp != strconv.Itoa(res.num) {
+		if res.Resp != strconv.Itoa(res.Num) {
 			return fmt.Errorf("invalid resp: %+v", res)
 		}
 	}
@@ -49,8 +50,8 @@ func subscribersGetValuesInTheFifoOrder(ctx *MyCtx) error {
 	return nil
 }
 
-func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, error) {
-	resultC := make(chan *Result, n)
+func subscribersWaitingForValueInQueue(ctx *main.MyCtx, n int) (context.Context, error) {
+	ResultC := make(chan *main.Result, n)
 	cancelC := make(chan context.CancelFunc, n)
 
 	connectedC := make(chan struct{})
@@ -83,15 +84,15 @@ func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, erro
 			ctx2, cancel := context.WithCancel(context.Background())
 			cancelC <- cancel
 
-			req, _ := http.NewRequestWithContext(ctx2, "GET", ctx.serverBaseURL+"/"+ctx.qName+"?timeout=300", nil)
+			req, _ := http.NewRequestWithContext(ctx2, "GET", ctx.ServerBaseURL+"/"+ctx.QName+"?timeout=300", nil)
 			resp, err := client.Do(req)
 			if err != nil {
-				resultC <- &Result{num: i, err: err}
+				ResultC <- &main.Result{Num: i, Err: err}
 				return
 			}
 
 			if resp.StatusCode != 200 {
-				resultC <- &Result{num: i, err: fmt.Errorf("status code %d", resp.StatusCode)}
+				ResultC <- &main.Result{Num: i, Err: fmt.Errorf("status code %d", resp.StatusCode)}
 				return
 			}
 
@@ -99,11 +100,11 @@ func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, erro
 			_ = resp.Body.Close()
 
 			if err != nil {
-				resultC <- &Result{num: i, err: err}
+				ResultC <- &main.Result{Num: i, Err: err}
 				return
 			}
 
-			resultC <- &Result{num: i, resp: string(body)}
+			ResultC <- &main.Result{Num: i, Resp: string(body)}
 		}(i)
 
 		// After client is connected to the server, go further to the next request
@@ -112,11 +113,11 @@ func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, erro
 
 	go func() {
 		wg.Wait()
-		close(resultC)
+		close(ResultC)
 	}()
 
-	ctx.resultC = resultC
-	ctx.cancelChan = cancelC
+	ctx.ResultC = ResultC
+	ctx.CancelChan = cancelC
 
 	return ctx, nil
 }
