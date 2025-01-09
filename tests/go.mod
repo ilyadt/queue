@@ -1,4 +1,4 @@
-module queue
+module queuetest
 
 go 1.19
 

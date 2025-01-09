@@ -1,4 +1,4 @@
-package main_test
+package queuetest_test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
-	"queue"
+	"queuetest"
 
 	"github.com/cucumber/godog"
 )
@@ -17,15 +17,15 @@ func init() {
 
 func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
-		ScenarioInitializer: func (ctx *godog.ScenarioContext) {
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
-				return &main.MyCtx{
+				return &queuetest.MyCtx{
 					Context:       ctx,
-					QName:         "Numbers_" + strconv.Itoa(rand.Int()),
+					QName:         "numbers_" + strconv.Itoa(rand.Int()),
 					ServerBaseURL: "http://127.0.0.1:2802",
 				}, nil
 			})
-			main.InitializeScenario1(ctx)
+			queuetest.InitializeScenario1(ctx)
 			InitializeScenario2(ctx)
 			InitializeScenario3(ctx)
 		},

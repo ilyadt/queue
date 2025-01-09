@@ -1,16 +1,16 @@
-package main_test
+package queuetest_test
 
 import (
 	"fmt"
 	"net/http"
+	"queuetest"
 	"strconv"
 	"time"
-	"queue"
 
 	"github.com/cucumber/godog"
 )
 
-func elementsPushedToQueue(ctx *main.MyCtx, n int) error {
+func elementsPushedToQueue(ctx *queuetest.MyCtx, n int) error {
 	client := http.DefaultClient
 
 	for i := 1; i <= n; i++ {
@@ -30,7 +30,7 @@ func elementsPushedToQueue(ctx *main.MyCtx, n int) error {
 	return nil
 }
 
-func queueIsEmpty(ctx *main.MyCtx) error {
+func queueIsEmpty(ctx *queuetest.MyCtx) error {
 	resp, err := http.Get(ctx.ServerBaseURL + "/" + ctx.QName)
 	if err != nil {
 		return fmt.Errorf("not nil error response: %w", err)
@@ -44,7 +44,7 @@ func queueIsEmpty(ctx *main.MyCtx) error {
 	return nil
 }
 
-func subscribersCancelRequest(ctx *main.MyCtx, x int) error {
+func subscribersCancelRequest(ctx *queuetest.MyCtx, x int) error {
 	cancelC := ctx.CancelChan
 
 	for i := 0; i < x; i++ {
@@ -58,7 +58,7 @@ func subscribersCancelRequest(ctx *main.MyCtx, x int) error {
 	return nil
 }
 
-func subscribersGotValues(ctx *main.MyCtx, y int) error {
+func subscribersGotValues(ctx *queuetest.MyCtx, y int) error {
 	ResultC := ctx.ResultC
 
 	i := 0
