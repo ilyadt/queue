@@ -26,8 +26,8 @@ func TestFeatures(t *testing.T) {
 				}, nil
 			})
 			queuetest.InitializeScenario1(ctx)
-			InitializeScenario2(ctx)
-			InitializeScenario3(ctx)
+			queuetest.InitializeScenario2(ctx)
+			queuetest.InitializeScenario3(ctx)
 		},
 		Options: &godog.Options{
 			Format:   "pretty",

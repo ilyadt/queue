@@ -1,4 +1,4 @@
-package queuetest_test
+package queuetest
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"queuetest"
 	"strconv"
 	"sync"
 	"time"
@@ -14,7 +13,7 @@ import (
 	"github.com/cucumber/godog"
 )
 
-func iPutElementsInQueue(ctx *queuetest.MyCtx, n int) error {
+func iPutElementsInQueue(ctx *MyCtx, n int) error {
 	client := http.DefaultClient
 
 	for i := 1; i <= n; i++ {
@@ -34,7 +33,7 @@ func iPutElementsInQueue(ctx *queuetest.MyCtx, n int) error {
 	return nil
 }
 
-func subscribersGetValuesInTheFifoOrder(ctx *queuetest.MyCtx) error {
+func subscribersGetValuesInTheFifoOrder(ctx *MyCtx) error {
 	ResultC := ctx.ResultC
 
 	for res := range ResultC {
@@ -50,8 +49,8 @@ func subscribersGetValuesInTheFifoOrder(ctx *queuetest.MyCtx) error {
 	return nil
 }
 
-func subscribersWaitingForValueInQueue(ctx *queuetest.MyCtx, n int) (context.Context, error) {
-	ResultC := make(chan *queuetest.Result, n)
+func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, error) {
+	ResultC := make(chan *Result, n)
 	cancelC := make(chan context.CancelFunc, n)
 
 	connectedC := make(chan struct{})
@@ -87,12 +86,12 @@ func subscribersWaitingForValueInQueue(ctx *queuetest.MyCtx, n int) (context.Con
 			req, _ := http.NewRequestWithContext(ctx2, "GET", ctx.ServerBaseURL+"/"+ctx.QName+"?timeout=300", nil)
 			resp, err := client.Do(req)
 			if err != nil {
-				ResultC <- &queuetest.Result{Num: i, Err: err}
+				ResultC <- &Result{Num: i, Err: err}
 				return
 			}
 
 			if resp.StatusCode != 200 {
-				ResultC <- &queuetest.Result{Num: i, Err: fmt.Errorf("status code %d", resp.StatusCode)}
+				ResultC <- &Result{Num: i, Err: fmt.Errorf("status code %d", resp.StatusCode)}
 				return
 			}
 
@@ -100,11 +99,11 @@ func subscribersWaitingForValueInQueue(ctx *queuetest.MyCtx, n int) (context.Con
 			_ = resp.Body.Close()
 
 			if err != nil {
-				ResultC <- &queuetest.Result{Num: i, Err: err}
+				ResultC <- &Result{Num: i, Err: err}
 				return
 			}
 
-			ResultC <- &queuetest.Result{Num: i, Resp: string(body)}
+			ResultC <- &Result{Num: i, Resp: string(body)}
 		}(i)
 
 		// After client is connected to the server, go further to the next request
