@@ -1,7 +1,6 @@
 package queuetest_test
 
 import (
-	"context"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -18,16 +17,14 @@ func init() {
 func TestFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
-			ctx.Before(func(ctx context.Context, sc *godog.Scenario) (context.Context, error) {
-				return &queuetest.MyCtx{
-					Context:       ctx,
-					QName:         "numbers_" + strconv.Itoa(rand.Int()),
-					ServerBaseURL: "http://127.0.0.1:2802",
-				}, nil
-			})
-			queuetest.InitializeScenario1(ctx)
-			queuetest.InitializeScenario2(ctx)
-			queuetest.InitializeScenario3(ctx)
+			cfg := &queuetest.ScenarioConfig{
+				ServerURL: "http://127.0.0.1:2802",
+				QName:  "numbers_" + strconv.Itoa(rand.Int()),
+			}
+
+			queuetest.InitializeScenario1(ctx, cfg)
+			queuetest.InitializeScenario2(ctx, cfg)
+			queuetest.InitializeScenario3(ctx, cfg)
 		},
 		Options: &godog.Options{
 			Format:   "pretty",

@@ -1,6 +1,7 @@
 package queuetest
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -9,12 +10,15 @@ import (
 	"github.com/cucumber/godog"
 )
 
-func elementsPushedToQueue(ctx *MyCtx, n int) error {
-	client := http.DefaultClient
+type Scenario3 struct {
+	serverBaseURL string
+	queue string
+}
 
+func (s3 *Scenario3) elementsPushedToQueue(ctx context.Context, n int) error {
 	for i := 1; i <= n; i++ {
-		req, _ := http.NewRequest("PUT", ctx.ServerBaseURL+"/"+ctx.QName+`?v=`+strconv.Itoa(i), nil)
-		resp, err := client.Do(req)
+		req, _ := http.NewRequest("PUT", s3.serverBaseURL+"/"+s3.queue+`?v=`+strconv.Itoa(i), nil)
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("not nil error response: %w", err)
 		}
@@ -29,8 +33,8 @@ func elementsPushedToQueue(ctx *MyCtx, n int) error {
 	return nil
 }
 
-func queueIsEmpty(ctx *MyCtx) error {
-	resp, err := http.Get(ctx.ServerBaseURL + "/" + ctx.QName)
+func (s3 *Scenario3) queueIsEmpty(ctx context.Context) error {
+	resp, err := http.Get(s3.serverBaseURL + "/" + s3.queue)
 	if err != nil {
 		return fmt.Errorf("not nil error response: %w", err)
 	}
@@ -43,8 +47,8 @@ func queueIsEmpty(ctx *MyCtx) error {
 	return nil
 }
 
-func subscribersCancelRequest(ctx *MyCtx, x int) error {
-	cancelC := ctx.CancelChan
+func (*Scenario3) subscribersCancelRequest(ctx context.Context, x int) error {
+	cancelC := ctx.Value(CancelChanContextKey).(chan context.CancelFunc)
 
 	for i := 0; i < x; i++ {
 		cancel := <-cancelC
@@ -57,11 +61,11 @@ func subscribersCancelRequest(ctx *MyCtx, x int) error {
 	return nil
 }
 
-func subscribersGotValues(ctx *MyCtx, y int) error {
-	ResultC := ctx.ResultC
+func (s3 *Scenario3) subscribersGotValues(ctx context.Context, y int) error {
+	resultC := ctx.Value(ResultChanContextKey).(chan *Result)
 
 	i := 0
-	for r := range ResultC {
+	for r := range resultC {
 		if r.Err == nil {
 			i++ // successful requests
 			fmt.Printf("RequestNO:%d resp:%s\n", r.Num, r.Resp)
@@ -78,9 +82,11 @@ func subscribersGotValues(ctx *MyCtx, y int) error {
 	return nil
 }
 
-func InitializeScenario3(ctx *godog.ScenarioContext) {
-	ctx.Step(`^(\d+) elements pushed to queue$`, elementsPushedToQueue)
-	ctx.Step(`^Queue is empty$`, queueIsEmpty)
-	ctx.Step(`^(\d+) subscribers cancel request$`, subscribersCancelRequest)
-	ctx.Step(`^(\d+) subscribers got values$`, subscribersGotValues)
+func InitializeScenario3(ctx *godog.ScenarioContext, cfg *ScenarioConfig) {
+	s3 := Scenario3{cfg.ServerURL, cfg.QName}
+
+	ctx.Step(`^(\d+) elements pushed to queue$`, s3.elementsPushedToQueue)
+	ctx.Step(`^Queue is empty$`, s3.queueIsEmpty)
+	ctx.Step(`^(\d+) subscribers cancel request$`, s3.subscribersCancelRequest)
+	ctx.Step(`^(\d+) subscribers got values$`, s3.subscribersGotValues)
 }

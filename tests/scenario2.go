@@ -13,12 +13,15 @@ import (
 	"github.com/cucumber/godog"
 )
 
-func iPutElementsInQueue(ctx *MyCtx, n int) error {
-	client := http.DefaultClient
+type Scenario2 struct {
+	serverBaseURL string
+	queue string
+}
 
+func (s2 *Scenario2) iPutElementsInQueue(ctx context.Context, n int) error {
 	for i := 1; i <= n; i++ {
-		req, _ := http.NewRequest("PUT", ctx.ServerBaseURL+"/"+ctx.QName+`?v=`+strconv.Itoa(i), nil)
-		resp, err := client.Do(req)
+		req, _ := http.NewRequest("PUT", s2.serverBaseURL+"/"+s2.queue+`?v=`+strconv.Itoa(i), nil)
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("not nil error response: %w", err)
 		}
@@ -33,10 +36,10 @@ func iPutElementsInQueue(ctx *MyCtx, n int) error {
 	return nil
 }
 
-func subscribersGetValuesInTheFifoOrder(ctx *MyCtx) error {
-	ResultC := ctx.ResultC
+func (s2 *Scenario2) subscribersGetValuesInTheFifoOrder(ctx context.Context) error {
+	resultC := ctx.Value(ResultChanContextKey).(chan *Result)
 
-	for res := range ResultC {
+	for res := range resultC {
 		if res.Err != nil {
 			return fmt.Errorf("error subscriber resp: %w: %+v", res.Err, res)
 		}
@@ -49,7 +52,7 @@ func subscribersGetValuesInTheFifoOrder(ctx *MyCtx) error {
 	return nil
 }
 
-func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, error) {
+func (s2 *Scenario2) subscribersWaitingForValueInQueue(ctx context.Context, n int) (context.Context, error) {
 	ResultC := make(chan *Result, n)
 	cancelC := make(chan context.CancelFunc, n)
 
@@ -83,7 +86,7 @@ func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, erro
 			ctx2, cancel := context.WithCancel(context.Background())
 			cancelC <- cancel
 
-			req, _ := http.NewRequestWithContext(ctx2, "GET", ctx.ServerBaseURL+"/"+ctx.QName+"?timeout=300", nil)
+			req, _ := http.NewRequestWithContext(ctx2, "GET", s2.serverBaseURL+"/"+s2.queue+"?timeout=300", nil)
 			resp, err := client.Do(req)
 			if err != nil {
 				ResultC <- &Result{Num: i, Err: err}
@@ -115,14 +118,16 @@ func subscribersWaitingForValueInQueue(ctx *MyCtx, n int) (context.Context, erro
 		close(ResultC)
 	}()
 
-	ctx.ResultC = ResultC
-	ctx.CancelChan = cancelC
+	ctx = context.WithValue(ctx, ResultChanContextKey, ResultC)
+	ctx = context.WithValue(ctx, CancelChanContextKey, cancelC)
 
 	return ctx, nil
 }
 
-func InitializeScenario2(ctx *godog.ScenarioContext) {
-	ctx.Step(`^I put (\d+) elements in queue$`, iPutElementsInQueue)
-	ctx.Step(`^subscribers get values in the fifo order$`, subscribersGetValuesInTheFifoOrder)
-	ctx.Step(`^(\d+) subscribers waiting for value in queue$`, subscribersWaitingForValueInQueue)
+func InitializeScenario2(ctx *godog.ScenarioContext, cfg *ScenarioConfig) {
+  s2 := Scenario2{cfg.ServerURL, cfg.QName}
+
+	ctx.Step(`^I put (\d+) elements in queue$`, s2.iPutElementsInQueue)
+	ctx.Step(`^subscribers get values in the fifo order$`, s2.subscribersGetValuesInTheFifoOrder)
+	ctx.Step(`^(\d+) subscribers waiting for value in queue$`, s2.subscribersWaitingForValueInQueue)
 }

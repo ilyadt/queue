@@ -10,29 +10,14 @@ import (
 	"github.com/cucumber/godog"
 )
 
-func InitializeScenario1(ctx *godog.ScenarioContext) {
-	ctx.Step(`^I get (\d+) elements from queue$`, iGetElementsFromQueue)
-	ctx.Step(`^next element will be (\d+)$`, nextElementWillBe)
-	ctx.Step(`^there are (\d+) elements in queue in order from 1 to N$`, thereAreNElementsInQueueInOrderFromOneToN)
+type Scenario1 struct {
+	serverBaseURL string
+	queue string
 }
 
-type MyCtx struct {
-	context.Context
-	QName         string
-	ServerBaseURL string
-	ResultC       chan *Result
-	CancelChan    chan context.CancelFunc // cancel function for each request
-}
-
-type Result struct {
-	Num  int    //
-	Err  error  //
-	Resp string //
-}
-
-func iGetElementsFromQueue(ctx *MyCtx, n int) error {
+func (s1 *Scenario1) iGetElementsFromQueue(ctx context.Context, n int) error {
 	for i := 0; i < n; i++ {
-		resp, err := http.DefaultClient.Get(ctx.ServerBaseURL + "/" + ctx.QName)
+		resp, err := http.DefaultClient.Get(s1.serverBaseURL + "/" + s1.queue)
 
 		if err != nil {
 			return fmt.Errorf("not nil error response: %w", err)
@@ -46,8 +31,8 @@ func iGetElementsFromQueue(ctx *MyCtx, n int) error {
 	return nil
 }
 
-func nextElementWillBe(ctx *MyCtx, value string) error {
-	resp, err := http.DefaultClient.Get(ctx.ServerBaseURL + "/" + ctx.QName)
+func (s1 *Scenario1) nextElementWillBe(ctx context.Context, value string) error {
+	resp, err := http.DefaultClient.Get(s1.serverBaseURL + "/" + s1.queue)
 
 	if err != nil {
 		return fmt.Errorf("not nil error response: %w", err)
@@ -63,15 +48,15 @@ func nextElementWillBe(ctx *MyCtx, value string) error {
 	}
 
 	if string(body) != value {
-		return fmt.Errorf("invalid value came from queue(%s): `%s`, expected: `%s`", ctx.QName, string(body), value)
+		return fmt.Errorf("invalid value came from queue(%s): `%s`, expected: `%s`", s1.queue, string(body), value)
 	}
 
 	return nil
 }
 
-func thereAreNElementsInQueueInOrderFromOneToN(ctx *MyCtx, n int) error {
+func (s1 *Scenario1) thereAreNElementsInQueueInOrderFromOneToN(ctx context.Context, n int) error {
 	for i := 1; i <= n; i++ {
-		req, _ := http.NewRequest("PUT", ctx.ServerBaseURL+"/"+ctx.QName+`?v=`+strconv.Itoa(i), nil)
+		req, _ := http.NewRequest("PUT", s1.serverBaseURL + "/" + s1.queue+`?v=`+strconv.Itoa(i), nil)
 		resp, err := http.DefaultClient.Do(req)
 
 		if err != nil {
@@ -84,4 +69,13 @@ func thereAreNElementsInQueueInOrderFromOneToN(ctx *MyCtx, n int) error {
 	}
 
 	return nil
+}
+
+
+func InitializeScenario1(ctx *godog.ScenarioContext, cfg *ScenarioConfig) {
+  s1 := Scenario1{cfg.ServerURL, cfg.QName}
+
+  ctx.Step(`^I get (\d+) elements from queue$`, s1.iGetElementsFromQueue)
+	ctx.Step(`^next element will be (\d+)$`, s1.nextElementWillBe)
+	ctx.Step(`^there are (\d+) elements in queue in order from 1 to N$`, s1.thereAreNElementsInQueueInOrderFromOneToN)
 }
