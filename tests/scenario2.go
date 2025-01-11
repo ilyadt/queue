@@ -67,18 +67,21 @@ func (s2 *Scenario2) subscribersWaitingForValueInQueue(ctx context.Context, n in
 			client := &http.Client{
 				Transport: &http.Transport{
 					DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+						defer func() {
+							connectedC <- struct{}{}
+						}()
+
 						nDialer := &net.Dialer{}
 
 						conn, err := nDialer.DialContext(ctx, network, address)
 						if err != nil {
-							return conn, err
+							return nil, err
 						}
 
 						// Wait some time for the request pass into the controller after connection
 						time.Sleep(10 * time.Millisecond)
-						connectedC <- struct{}{}
 
-						return conn, err
+						return conn, nil
 					},
 				},
 			}
