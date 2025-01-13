@@ -19,3 +19,8 @@ type ScenarioConfig struct {
 	ServerURL string
 	QName      string
 }
+
+type Scenario struct {
+	serverBaseURL string
+	queue string
+}

@@ -10,14 +10,9 @@ import (
 	"github.com/cucumber/godog"
 )
 
-type Scenario3 struct {
-	serverBaseURL string
-	queue string
-}
-
-func (s3 *Scenario3) elementsPushedToQueue(ctx context.Context, n int) error {
+func (s *Scenario) elementsPushedToQueue(ctx context.Context, n int) error {
 	for i := 1; i <= n; i++ {
-		req, _ := http.NewRequest("PUT", s3.serverBaseURL+"/"+s3.queue+`?v=`+strconv.Itoa(i), nil)
+		req, _ := http.NewRequest("PUT", s.serverBaseURL+"/"+s.queue+`?v=`+strconv.Itoa(i), nil)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("not nil error response: %w", err)
@@ -33,8 +28,8 @@ func (s3 *Scenario3) elementsPushedToQueue(ctx context.Context, n int) error {
 	return nil
 }
 
-func (s3 *Scenario3) queueIsEmpty(ctx context.Context) error {
-	resp, err := http.Get(s3.serverBaseURL + "/" + s3.queue)
+func (s *Scenario) queueIsEmpty(ctx context.Context) error {
+	resp, err := http.Get(s.serverBaseURL + "/" + s.queue)
 	if err != nil {
 		return fmt.Errorf("not nil error response: %w", err)
 	}
@@ -47,7 +42,7 @@ func (s3 *Scenario3) queueIsEmpty(ctx context.Context) error {
 	return nil
 }
 
-func (*Scenario3) subscribersCancelRequest(ctx context.Context, x int) error {
+func (*Scenario) subscribersCancelRequest(ctx context.Context, x int) error {
 	cancelC := ctx.Value(CancelChanContextKey).(chan context.CancelFunc)
 
 	for i := 0; i < x; i++ {
@@ -61,7 +56,7 @@ func (*Scenario3) subscribersCancelRequest(ctx context.Context, x int) error {
 	return nil
 }
 
-func (s3 *Scenario3) subscribersGotValues(ctx context.Context, y int) error {
+func (s *Scenario) subscribersGotValues(ctx context.Context, y int) error {
 	resultC := ctx.Value(ResultChanContextKey).(chan *Result)
 
 	i := 0
@@ -83,10 +78,10 @@ func (s3 *Scenario3) subscribersGotValues(ctx context.Context, y int) error {
 }
 
 func InitializeScenario3(ctx *godog.ScenarioContext, cfg *ScenarioConfig) {
-	s3 := Scenario3{cfg.ServerURL, cfg.QName}
+	s := Scenario{cfg.ServerURL, cfg.QName}
 
-	ctx.Step(`^(\d+) elements pushed to queue$`, s3.elementsPushedToQueue)
-	ctx.Step(`^Queue is empty$`, s3.queueIsEmpty)
-	ctx.Step(`^(\d+) subscribers cancel request$`, s3.subscribersCancelRequest)
-	ctx.Step(`^(\d+) subscribers got values$`, s3.subscribersGotValues)
+	ctx.Step(`^(\d+) elements pushed to queue$`, s.elementsPushedToQueue)
+	ctx.Step(`^Queue is empty$`, s.queueIsEmpty)
+	ctx.Step(`^(\d+) subscribers cancel request$`, s.subscribersCancelRequest)
+	ctx.Step(`^(\d+) subscribers got values$`, s.subscribersGotValues)
 }

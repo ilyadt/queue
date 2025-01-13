@@ -13,14 +13,9 @@ import (
 	"github.com/cucumber/godog"
 )
 
-type Scenario2 struct {
-	serverBaseURL string
-	queue string
-}
-
-func (s2 *Scenario2) iPutElementsInQueue(ctx context.Context, n int) error {
+func (s *Scenario) iPutElementsInQueue(ctx context.Context, n int) error {
 	for i := 1; i <= n; i++ {
-		req, _ := http.NewRequest("PUT", s2.serverBaseURL+"/"+s2.queue+`?v=`+strconv.Itoa(i), nil)
+		req, _ := http.NewRequest("PUT", s.serverBaseURL+"/"+s.queue+`?v=`+strconv.Itoa(i), nil)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("not nil error response: %w", err)
@@ -36,7 +31,7 @@ func (s2 *Scenario2) iPutElementsInQueue(ctx context.Context, n int) error {
 	return nil
 }
 
-func (s2 *Scenario2) subscribersGetValuesInTheFifoOrder(ctx context.Context) error {
+func (s *Scenario) subscribersGetValuesInTheFifoOrder(ctx context.Context) error {
 	resultC := ctx.Value(ResultChanContextKey).(chan *Result)
 
 	for res := range resultC {
@@ -52,7 +47,7 @@ func (s2 *Scenario2) subscribersGetValuesInTheFifoOrder(ctx context.Context) err
 	return nil
 }
 
-func (s2 *Scenario2) subscribersWaitingForValueInQueue(ctx context.Context, n int) (context.Context, error) {
+func (s *Scenario) subscribersWaitingForValueInQueue(ctx context.Context, n int) (context.Context, error) {
 	ResultC := make(chan *Result, n)
 	cancelC := make(chan context.CancelFunc, n)
 
@@ -89,7 +84,7 @@ func (s2 *Scenario2) subscribersWaitingForValueInQueue(ctx context.Context, n in
 			ctx2, cancel := context.WithCancel(context.Background())
 			cancelC <- cancel
 
-			req, _ := http.NewRequestWithContext(ctx2, "GET", s2.serverBaseURL+"/"+s2.queue+"?timeout=300", nil)
+			req, _ := http.NewRequestWithContext(ctx2, "GET", s.serverBaseURL+"/"+s.queue+"?timeout=300", nil)
 			resp, err := client.Do(req)
 			if err != nil {
 				ResultC <- &Result{Num: i, Err: err}
@@ -128,9 +123,9 @@ func (s2 *Scenario2) subscribersWaitingForValueInQueue(ctx context.Context, n in
 }
 
 func InitializeScenario2(ctx *godog.ScenarioContext, cfg *ScenarioConfig) {
-  s2 := Scenario2{cfg.ServerURL, cfg.QName}
+  s := Scenario{cfg.ServerURL, cfg.QName}
 
-	ctx.Step(`^I put (\d+) elements in queue$`, s2.iPutElementsInQueue)
-	ctx.Step(`^subscribers get values in the fifo order$`, s2.subscribersGetValuesInTheFifoOrder)
-	ctx.Step(`^(\d+) subscribers waiting for value in queue$`, s2.subscribersWaitingForValueInQueue)
+	ctx.Step(`^I put (\d+) elements in queue$`, s.iPutElementsInQueue)
+	ctx.Step(`^subscribers get values in the fifo order$`, s.subscribersGetValuesInTheFifoOrder)
+	ctx.Step(`^(\d+) subscribers waiting for value in queue$`, s.subscribersWaitingForValueInQueue)
 }
