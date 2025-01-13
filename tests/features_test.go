@@ -2,10 +2,10 @@ package queuetest_test
 
 import (
 	"math/rand"
+	"queuetest"
 	"strconv"
 	"testing"
 	"time"
-	"queuetest"
 
 	"github.com/cucumber/godog"
 )
@@ -19,16 +19,17 @@ func TestFeatures(t *testing.T) {
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			cfg := &queuetest.ScenarioConfig{
 				ServerURL: "http://127.0.0.1:2802",
-				QName:  "numbers_" + strconv.Itoa(rand.Int()),
+				QName:     "numbers_" + strconv.Itoa(rand.Int()),
 			}
 
 			queuetest.InitializeScenario1(ctx, cfg)
 			queuetest.InitializeScenario2(ctx, cfg)
 			queuetest.InitializeScenario3(ctx, cfg)
+			queuetest.InitializeValidationScenario(ctx, cfg)
 		},
 		Options: &godog.Options{
 			Format:   "pretty",
-			Paths:    []string{"features/queue.feature"},
+			Paths:    []string{"features"},
 			TestingT: t, // Testing instance that will run subtests.
 		},
 	}

@@ -61,13 +61,10 @@ func (s *Scenario) subscribersGotValues(ctx context.Context, y int) error {
 
 	i := 0
 	for r := range resultC {
+		// successful requests
 		if r.Err == nil {
-			i++ // successful requests
-			fmt.Printf("RequestNO:%d resp:%s\n", r.Num, r.Resp)
-		} else {
-			fmt.Printf("RequestNO:%d Error: %v\n", r.Num, r.Err.Error())
+			i++
 		}
-
 	}
 
 	if i != y {

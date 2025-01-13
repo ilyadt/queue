@@ -7,6 +7,7 @@ const (
 
 	ResultChanContextKey //ctx:value chan *Result
 	CancelChanContextKey //ctx:value chan context.CancelFunc
+	ResponseContextKey   //ctx:value *http.Response
 )
 
 type Result struct {
